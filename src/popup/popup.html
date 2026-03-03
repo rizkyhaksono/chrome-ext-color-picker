@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Natee Color Picker</title>
+    <link rel="stylesheet" href="popup.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body>
+    <main class="popup-root">
+      <header class="popup-header">
+        <h1 class="popup-title">Color Picker</h1>
+      </header>
+
+      <section class="picker-section">
+        <label class="field-label" for="color-input">Color</label>
+        <div class="color-row">
+          <input id="color-input" type="color" class="color-input" />
+          <button id="eyedropper-btn" class="btn secondary" type="button">
+            Eyedropper
+          </button>
+        </div>
+        <p id="eyedropper-support" class="eyedropper-support"></p>
+      </section>
+
+      <section class="preview-section">
+        <div id="color-preview" class="color-preview"></div>
+        <div class="value-column">
+          <label class="field-label" for="format-select">Format</label>
+          <select id="format-select" class="select">
+            <option value="hex">HEX</option>
+            <option value="rgb">RGB</option>
+            <option value="hsl">HSL</option>
+          </select>
+          <div class="value-row">
+            <input id="color-value" class="value-input" type="text" readonly />
+            <button id="copy-btn" class="btn primary" type="button">
+              Copy
+            </button>
+          </div>
+          <span id="copy-status" class="copy-status" aria-live="polite"></span>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="../../dist/popup/popup.js"></script>
+  </body>
+</html>
+

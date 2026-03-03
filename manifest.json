@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Natee Color Picker",
+  "description": "Color picker extension dengan eyedropper dan format HEX/RGB/HSL.",
+  "version": "1.0.0",
+  "action": {
+    "default_title": "Natee Color Picker",
+    "default_popup": "src/popup/popup.html"
+  },
+  "permissions": [
+    "activeTab",
+    "storage"
+  ]
+}
+
