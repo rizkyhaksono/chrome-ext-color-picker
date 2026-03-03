@@ -1,12 +1,10 @@
 export async function copyText(text: string): Promise<void> {
+  if (!text || !text.trim()) {
+    throw new Error('No text to copy');
+  }
   if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
-    return;
+    throw new Error('Clipboard not available');
   }
-
-  try {
-    await navigator.clipboard.writeText(text);
-  } catch {
-    // swallow clipboard errors; UI can still proceed
-  }
+  await navigator.clipboard.writeText(text);
 }
 

@@ -4,6 +4,17 @@ import { getPreferences, setPreferences } from '../services/storage';
 import { copyText } from '../services/clipboard';
 import { isSupported as isEyedropperSupported, openEyeDropper } from '../services/eyedropper';
 
+declare const chrome: {
+  tabs: { query: (q: object, cb: (tabs: { id?: number; url?: string }[]) => void) => void };
+  scripting: {
+    executeScript: (
+      opts: { target: { tabId: number }; files: string[] },
+      cb: (results?: { result?: { name: string; category: string }[] }[]) => void
+    ) => void;
+  };
+  runtime: { lastError?: { message?: string } };
+};
+
 let currentColor: string = DEFAULT_COLOR;
 let currentFormat: ColorFormat = DEFAULT_FORMAT;
 
@@ -26,7 +37,8 @@ async function init() {
   const copyStatus = $('copy-status') as HTMLSpanElement;
 
   const prefs = await getPreferences();
-  currentColor = normalizeHex(prefs.color || DEFAULT_COLOR);
+  const savedColor = normalizeHex(prefs.color || DEFAULT_COLOR);
+  currentColor = savedColor && savedColor.trim() ? savedColor : DEFAULT_COLOR;
   currentFormat = prefs.format || DEFAULT_FORMAT;
 
   formatSelect.value = currentFormat;
@@ -76,11 +88,105 @@ async function init() {
     await setPreferences({ color: currentColor });
   });
 
-  copyBtn.addEventListener('click', async () => {
+  async function doCopy() {
     const value = toDisplayString(currentColor, currentFormat);
-    await copyText(value);
-    showCopyStatus(copyStatus, 'Copied to clipboard', true);
+    if (!value || !value.trim()) {
+      showCopyStatus(copyStatus, 'Pilih warna dulu.', false);
+      return;
+    }
+    try {
+      await copyText(value);
+      showCopyStatus(copyStatus, 'Copied!', true);
+    } catch {
+      showCopyStatus(copyStatus, 'Copy gagal.', false);
+    }
+  }
+
+  copyBtn.addEventListener('click', () => void doCopy());
+
+  colorValue.addEventListener('click', () => {
+    const value = toDisplayString(currentColor, currentFormat);
+    if (value && value.trim()) {
+      colorValue.select();
+      void doCopy();
+    } else {
+      showCopyStatus(copyStatus, 'Pilih warna dulu.', false);
+    }
   });
+
+  runPageTechnologyAnalyzer();
+}
+
+function runPageTechnologyAnalyzer() {
+  const techStatus = document.getElementById('tech-status') as HTMLParagraphElement;
+  const techList = document.getElementById('tech-list') as HTMLUListElement;
+  if (!techStatus || !techList) return;
+
+  techStatus.textContent = 'Analyzing…';
+  techStatus.hidden = false;
+  techList.hidden = true;
+  techList.innerHTML = '';
+
+  const setDone = (message: string) => {
+    techStatus.textContent = message;
+    techStatus.hidden = false;
+    techList.hidden = true;
+  };
+
+  const timeoutId = window.setTimeout(() => {
+    if (techStatus.textContent === 'Analyzing…') {
+      setDone('Could not analyze. Open a website and try again.');
+    }
+  }, 3500);
+
+  chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+    const tab = tabs[0];
+    if (!tab?.id) {
+      window.clearTimeout(timeoutId);
+      setDone('Open a webpage first.');
+      return;
+    }
+    const url = tab.url || '';
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      window.clearTimeout(timeoutId);
+      setDone('Cannot analyze this page (open a website).');
+      return;
+    }
+
+    chrome.scripting.executeScript(
+      {
+        target: { tabId: tab.id },
+        files: ['src/content/detectTechnologies.js'],
+      },
+      (results) => {
+        window.clearTimeout(timeoutId);
+        if (chrome.runtime.lastError) {
+          setDone('Cannot analyze this page.');
+          return;
+        }
+        const list = results?.[0]?.result as { name: string; category: string }[] | undefined;
+        if (!Array.isArray(list) || list.length === 0) {
+          setDone('No technologies detected.');
+          return;
+        }
+        techStatus.hidden = true;
+        techList.hidden = false;
+        for (const item of list) {
+          const li = document.createElement('li');
+          li.className = 'tech-item';
+          li.setAttribute('role', 'listitem');
+          li.innerHTML = `<span>${escapeHtml(item.name)}</span><span class="tech-item__category">${escapeHtml(item.category)}</span>`;
+          techList.appendChild(li);
+        }
+      }
+    );
+  });
+}
+
+function escapeHtml(text: string): string {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 function updatePreview(preview: HTMLDivElement, color: string) {
